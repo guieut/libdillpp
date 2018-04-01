@@ -11,13 +11,13 @@ include_directories(include)
 
 
 # Set C++11/14 support
-set (CMAKE_CXX_STANDARD 14)
-set (CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 14)
+set(CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 
 add_library(dillpp SHARED
     dillpp.cpp
-#    ${LIBDILL_LIBRARY}
 )
 
 target_link_libraries(dillpp ${LIBDILL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})

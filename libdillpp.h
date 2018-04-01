@@ -1,4 +1,6 @@
 #include <functional>
+#include <system_error>
+#include <vector>
 
 extern "C"
 {
@@ -10,37 +12,47 @@ extern "C"
 namespace dill
 {
 
-template <typename CT, typename ... A> struct coroutine_t
-: public coroutine_t<decltype(&CT::operator())(A...)> {};
-
-template <typename C> struct coroutine_t<C> {
+class coroutine {
 private:
-    C mObject;
     int32_t m_handle;
 
 public:
-    template<typename... Args> 
-    coroutine_t(const C & obj, Args&&... args)
-        : mObject(obj), m_handle(-2) {
-            go(args...);
+    
+    coroutine(coroutine&& coro) noexcept;
+
+    template<typename C, typename... Args> 
+    coroutine(const C & obj, Args&&... args)
+    : m_handle(-2)
+    {
+        try
+        {
+            m_handle = go_(obj.operator()(args...), NULL, 0, -1);
+        }
+        catch(...)
+        {
         }
 
-private:
-    template<typename... Args> typename
-    std::result_of<C(Args...)>::type __attribute__((noinline)) go(Args... a) {
-        m_handle = go_(this->mObject.operator()(a...), NULL, 0, -1);
-    }
+        if (m_handle == -1)
+        {
+            switch( errno )
+            {
+                case ECANCELED:
+                break;
+                default:
+                throw std::system_error( errno, std::generic_category() );
+            }
+        }
+    };
 
-    template<typename... Args> typename
-    std::result_of<const C(Args...)>::type __attribute__((noinline)) go(Args... a) const {
-        m_handle = go_(this->mObject.operator()(a...), NULL, 0, -1);
-    }
+    ~coroutine();
+
+    void cancel();
+
 };
 
-template<typename C, typename... Args> auto go(const C & obj, Args&&... args) {
-    auto c = coroutine_t<C>(obj, args...);
-    //c.go( args... );
-    return c;
+template<typename C, typename... Args> void go(const C & obj, Args&&... args) {
+    static std::vector<dill::coroutine> vec;
+    vec.emplace_back(obj, args...);
 }
 
 }
